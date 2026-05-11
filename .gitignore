@@ -1,0 +1,3 @@
+.env
+sanctions_manual_*/
+*.pyc

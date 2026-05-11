@@ -1,0 +1,50 @@
+{
+  "invoice_number": "0090880005",
+  "invoice_date": "2026-02-11",
+  "currency": "CAD",
+  "total_amount": 1264.00,
+  "parties": [
+    {
+      "role": "BILL_TO",
+      "name": "MEGAGEN IMPLANT CO., LTD.",
+      "address": "DASA-EUP, DALSEONG-GUN, 45, SECHEON-RO 7-GIL, DAEGU ZZ 42921, SOUTH KOREA",
+      "country": "SOUTH KOREA",
+      "registration_number": "",
+      "tax_id": "",
+      "account_number": "",
+      "swift": "",
+      "iban": "",
+      "account_holder": "",
+      "phone": "",
+      "email": ""
+    },
+    {
+      "role": "ISSUER",
+      "name": "Health Canada - Santé Canada",
+      "address": "P/L 1918B - L/P1918B, RM-PIÈCE 1804B, 161 GOLDENROD DRWY, OTTAWA ON K1A 0K9",
+      "country": "CANADA",
+      "registration_number": "",
+      "tax_id": "121491807 RT0270",
+      "account_number": "",
+      "swift": "",
+      "iban": "",
+      "account_holder": "",
+      "phone": "1-800-815-0506",
+      "email": "ar-cr@hc-sc.gc.ca"
+    },
+    {
+      "role": "REMIT_TO",
+      "name": "Health Canada - Santé Canada",
+      "address": "P/L 1918B - L/P1918B, RM-PIÈCE 1804B, 161 GOLDENROD DRWY, OTTAWA ON K1A 0K9",
+      "country": "CANADA",
+      "registration_number": "",
+      "tax_id": "",
+      "account_number": "",
+      "swift": "",
+      "iban": "",
+      "account_holder": "",
+      "phone": "1-800-815-0506",
+      "email": "ar-cr@hc-sc.gc.ca"
+    }
+  ]
+}

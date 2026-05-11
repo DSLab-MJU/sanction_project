@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+pydantic-settings
+psycopg[binary]
+sentence-transformers
+torch
