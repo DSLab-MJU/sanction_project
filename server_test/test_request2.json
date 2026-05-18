@@ -1,0 +1,41 @@
+  {
+    "invoice_number": "MGG-IV-240126-13",
+    "invoice_date": "2024-01-26",
+    "currency": "USD",
+    "total_amount": 149552.90,
+    "parties": [
+      {
+        "role": "ISSUER",
+        "name": "Megagen Implant Co., Ltd.",
+        "address": "45, Secheon-ro 7-gil, Dasa-eup, Dalseong-gun, Daegu, Republic of Korea",
+        "country": "REPUBLIC OF KOREA",
+        "registration_number": "504-81-43999",
+        "tax_id": "",
+        "phone": "+82-53-222-2828",
+        "email": "",
+        "bank_accounts": []
+      },
+      {
+        "role": "BILL_TO",
+        "name": "Alnajah medical equipment",
+        "address": "Damascus Alferdous street, SYRIA",
+        "country": "SYRIA",
+        "registration_number": "",
+        "tax_id": "",
+        "phone": "+971556216117 / +963951525522",
+        "email": "",
+        "bank_accounts": []
+      },
+      {
+        "role": "OTHER",
+        "name": "ELŞARK KARGO TAŞIMACILIK İTHALAT İHRACAT SANAYİ VE TİCARET LİMİTED ŞİRKETİ",
+        "address": "KAZIM KARABEKİR MAH. PERİNAZ SK. İPEK APT NO: 10 İÇ KAPI NO: 7 MERKEZ/KİLİS",
+        "country": "TURKEY",
+        "registration_number": "",
+        "tax_id": "3331721322",
+        "phone": "05394000034",
+        "email": "alshark.company2@gmail.com",
+        "bank_accounts": []
+      }
+    ]
+  }

@@ -1,0 +1,19 @@
+  {
+    "invoice_number": "213204",
+    "invoice_date": "2024-10-29",
+    "currency": "EUR",
+    "total_amount": 4805.94,
+    "parties": [
+      {
+        "role": "ISSUER",
+        "name": "MDSS GmbH",
+        "address": "",
+        "country": "",
+        "registration_number": "",
+        "tax_id": "",
+        "phone": "",
+        "email": "",
+        "bank_accounts": []
+      }
+    ]
+  }

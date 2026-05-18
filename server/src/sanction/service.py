@@ -23,7 +23,7 @@ WITH input_party AS (
         NULLIF(TRIM(%(party_country)s), '') AS country,
         NULLIF(TRIM(%(party_registration_number)s), '') AS registration_number,
         NULLIF(TRIM(%(party_tax_id)s), '') AS tax_id,
-        NULLIF(TRIM(%(party_swift)s), '') AS swift,
+        %(party_swifts)s::text[] AS swifts,
         NULLIF(TRIM(%(party_phone)s), '') AS phone,
         NULLIF(TRIM(%(party_email)s), '') AS email
 ),
@@ -33,10 +33,18 @@ norm_party AS (
         LOWER(TRIM(COALESCE(country, ''))) AS norm_country,
         LOWER(REGEXP_REPLACE(COALESCE(registration_number, ''), '[^a-zA-Z0-9]+', '', 'g')) AS norm_registration_number,
         LOWER(REGEXP_REPLACE(COALESCE(tax_id, ''), '[^a-zA-Z0-9]+', '', 'g')) AS norm_tax_id,
-        LOWER(REGEXP_REPLACE(COALESCE(swift, ''), '[^a-zA-Z0-9]+', '', 'g')) AS norm_swift,
         LOWER(TRIM(COALESCE(email, ''))) AS norm_email,
         REGEXP_REPLACE(COALESCE(phone, ''), '[^0-9]+', '', 'g') AS norm_phone
     FROM input_party
+),
+swift_inputs AS (
+    SELECT
+        p.role,
+        swift AS input_value,
+        LOWER(REGEXP_REPLACE(COALESCE(swift, ''), '[^a-zA-Z0-9]+', '', 'g')) AS norm_swift
+    FROM norm_party p
+    CROSS JOIN LATERAL UNNEST(p.swifts) AS swift
+    WHERE NULLIF(TRIM(swift), '') IS NOT NULL
 ),
 name_vector_matches AS (
     SELECT
@@ -45,7 +53,6 @@ name_vector_matches AS (
         s.subject_id,
         s.primary_name AS sanction_name,
         s.source_system,
-        s.source_dataset,
         'NAME_VECTOR' AS match_field,
         sn.full_name AS matched_value,
         1 - (sne.embedding <=> CAST(%(name_vector)s AS vector)) AS match_score
@@ -68,7 +75,6 @@ address_vector_matches AS (
         s.subject_id,
         s.primary_name AS sanction_name,
         s.source_system,
-        s.source_dataset,
         'ADDRESS_VECTOR' AS match_field,
         sa.address_full_raw AS matched_value,
         1 - (sae.embedding <=> CAST(%(address_vector)s AS vector)) AS match_score
@@ -91,7 +97,6 @@ registration_matches AS (
         s.subject_id,
         s.primary_name AS sanction_name,
         s.source_system,
-        s.source_dataset,
         'REGISTRATION_NUMBER' AS match_field,
         si.identifier_value AS matched_value,
         1.0::float AS match_score
@@ -126,7 +131,6 @@ tax_matches AS (
         s.subject_id,
         s.primary_name AS sanction_name,
         s.source_system,
-        s.source_dataset,
         'TAX_ID' AS match_field,
         si.identifier_value AS matched_value,
         1.0::float AS match_score
@@ -157,15 +161,14 @@ tax_matches AS (
 swift_matches AS (
     SELECT
         p.role,
-        p.swift AS input_value,
+        p.input_value,
         s.subject_id,
         s.primary_name AS sanction_name,
         s.source_system,
-        s.source_dataset,
         'SWIFT' AS match_field,
         si.identifier_value AS matched_value,
         1.0::float AS match_score
-    FROM norm_party p
+    FROM swift_inputs p
     JOIN subject_identifiers si
       ON p.norm_swift <> ''
      AND UPPER(REPLACE(si.identifier_type, '_', '')) = 'SWIFTBIC'
@@ -188,7 +191,6 @@ phone_matches AS (
         s.subject_id,
         s.primary_name AS sanction_name,
         s.source_system,
-        s.source_dataset,
         'PHONE' AS match_field,
         sc.contact_value AS matched_value,
         1.0::float AS match_score
@@ -208,7 +210,6 @@ email_matches AS (
         s.subject_id,
         s.primary_name AS sanction_name,
         s.source_system,
-        s.source_dataset,
         'EMAIL' AS match_field,
         sc.contact_value AS matched_value,
         1.0::float AS match_score
@@ -256,7 +257,6 @@ aggregated_matches AS (
         subject_id,
         MAX(sanction_name) AS sanction_name,
         MAX(source_system) AS source_system,
-        MAX(source_dataset) AS source_dataset,
         ARRAY_AGG(DISTINCT match_field) AS matched_on,
         STRING_AGG(
             DISTINCT match_field || '=' || COALESCE(matched_value, ''),
@@ -303,7 +303,6 @@ SELECT
     subject_id,
     sanction_name,
     source_system,
-    source_dataset,
     matched_on,
     matched_details,
     base_score,
@@ -337,14 +336,23 @@ def _row_to_candidate(row: dict[str, Any]) -> MatchCandidate:
         matched_party_role=row["role"],
         sanction_name=row.get("sanction_name") or "",
         source_system=row.get("source_system") or "",
-        source_dataset=row.get("source_dataset") or "",
         matched_on=row.get("matched_on") or [],
         matched_details=row.get("matched_details") or "",
         base_score=float(row.get("base_score") or 0.0),
         country_bonus=float(row.get("country_bonus") or 0.0),
         final_score=float(row.get("final_score") or 0.0),
-        subject_type="",
     )
+
+
+def _bank_swifts(party: Party) -> list[str]:
+    seen: set[str] = set()
+    values: list[str] = []
+    for account in party.bank_accounts:
+        value = account.swift.strip()
+        if value and value not in seen:
+            seen.add(value)
+            values.append(value)
+    return values
 
 
 def _search_one_party(conn: psycopg.Connection, party: Party) -> list[MatchCandidate]:
@@ -358,7 +366,7 @@ def _search_one_party(conn: psycopg.Connection, party: Party) -> list[MatchCandi
         "party_country": party.country,
         "party_registration_number": party.registration_number,
         "party_tax_id": party.tax_id,
-        "party_swift": party.swift,
+        "party_swifts": _bank_swifts(party),
         "party_phone": party.phone,
         "party_email": party.email,
         "name_vector": name_vector,

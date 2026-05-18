@@ -126,12 +126,17 @@ curl -X POST http://localhost:8000/search \
       "country": "Cuba",
       "registration_number": "",
       "tax_id": "",
-      "account_number": "",
-      "swift": "",
-      "iban": "",
-      "account_holder": "",
       "phone": "",
-      "email": ""
+      "email": "",
+      "bank_accounts": [
+        {
+          "account_holder": "",
+          "bank_name": "",
+          "account_number": "",
+          "iban": "",
+          "swift": ""
+        }
+      ]
     }
   ]
 }

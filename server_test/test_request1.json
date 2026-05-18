@@ -11,12 +11,9 @@
       "country": "SOUTH KOREA",
       "registration_number": "",
       "tax_id": "",
-      "account_number": "",
-      "swift": "",
-      "iban": "",
-      "account_holder": "",
       "phone": "",
-      "email": ""
+      "email": "",
+      "bank_accounts": []
     },
     {
       "role": "ISSUER",
@@ -25,12 +22,9 @@
       "country": "CANADA",
       "registration_number": "",
       "tax_id": "121491807 RT0270",
-      "account_number": "",
-      "swift": "",
-      "iban": "",
-      "account_holder": "",
       "phone": "1-800-815-0506",
-      "email": "ar-cr@hc-sc.gc.ca"
+      "email": "ar-cr@hc-sc.gc.ca",
+      "bank_accounts": []
     },
     {
       "role": "REMIT_TO",
@@ -39,12 +33,9 @@
       "country": "CANADA",
       "registration_number": "",
       "tax_id": "",
-      "account_number": "",
-      "swift": "",
-      "iban": "",
-      "account_holder": "",
       "phone": "1-800-815-0506",
-      "email": "ar-cr@hc-sc.gc.ca"
+      "email": "ar-cr@hc-sc.gc.ca",
+      "bank_accounts": []
     }
   ]
 }

@@ -1,0 +1,45 @@
+  {
+    "invoice_number": "213204",
+    "invoice_date": "2024-10-29",
+    "currency": "EUR",
+    "total_amount": 4805.94,
+    "parties": [
+      {
+        "role": "ISSUER",
+        "name": "MDSS GmbH",
+        "address": "Schiffgraben 41, 30175 Hannover, Germany",
+        "country": "GERMANY",
+        "registration_number": "HRB 57318",
+        "tax_id": "DE177346163",
+        "phone": "+49 511 62628630",
+        "email": "info@mdssar.com",
+        "bank_accounts": [
+          {
+            "account_holder": "MDSS GmbH",
+            "bank_name": "Sparkasse Hannover",
+            "account_number": "",
+            "iban": "DE24 2505 0180 0910 0792 77",
+            "swift": "SPKHDE2H"
+          },
+          {
+            "account_holder": "MDSS GmbH",
+            "bank_name": "Commerzbank AG, Hannover",
+            "account_number": "",
+            "iban": "DE67 2504 0066 0338 8816 00",
+            "swift": "COBADEFF250"
+          }
+        ]
+      },
+      {
+        "role": "BILL_TO",
+        "name": "MegaGen Implant Co., Ltd.",
+        "address": "45, Secheon-ro 7-gil, Dasa-eup, Dalseong-gun, 42921 Daegu, Republic of Korea",
+        "country": "REPUBLIC OF KOREA",
+        "registration_number": "",
+        "tax_id": "",
+        "phone": "",
+        "email": "",
+        "bank_accounts": []
+      }
+    ]
+  }
