@@ -4,6 +4,8 @@
 
 BEGIN;
 
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 -- ---------------------------------------------------------
 -- Optional cleanup (uncomment if needed)
 -- ---------------------------------------------------------

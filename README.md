@@ -8,13 +8,7 @@ invoice party 정보를 입력받아 sanctions DB에서 제재 대상 후보를 
 - Python 3.10+
 
 ```bash
-python3 -m pip install -U pandas psycopg sentence-transformers tqdm
-```
-
-embedding에 사용하는 모델:
-```text
-sentence-transformers/all-mpnet-base-v2
-normalize_embeddings=True
+python3 -m pip install -U pandas psycopg
 ```
 
 ## 1. Clone
@@ -47,7 +41,7 @@ cd server
 docker compose up --build -d
 ```
 
-지금 단계까지는 DB schema/data/embedding이 아직 없으므로 `/search`는 데이터 로드 후 정상 동작합니다.
+지금 단계까지는 DB schema/data가 아직 없으므로 `/search`는 데이터 로드 후 정상 동작합니다.
 
 ## 4. Create Base Schema
 
@@ -58,9 +52,9 @@ docker cp pipeline/schema_pg.sql sanction-postgres:/tmp/schema_pg.sql
 docker exec -i sanction-postgres psql -U dslab -d sanction -f /tmp/schema_pg.sql
 ```
 
-## 5. Load Sanctions Data + Embeddings
+## 5. Load Sanctions Data
 
-OFAC/UK/UN/EU source를 다운로드하고, 16개 schema CSV 생성, 검증, append-only DB load, pgvector embedding 생성을 수행
+OFAC/UK/UN/EU source를 다운로드하고, 16개 schema CSV 생성, 검증, append-only DB load를 수행
 
 ```bash
 cd pipeline
@@ -73,14 +67,14 @@ PGPORT=5432 \
 PGDATABASE=sanction \
 PGUSER=dslab \
 PGPASSWORD='PASSWORD' \
-./server_run_all_sources_update.sh --trigger manual
+./server_run_all_sources_update.sh --trigger manual --skip-embedding
 ```
 
 검증만 실행:
 
 ```bash
 PIPELINE_USER_AGENT='SanctionPipeline/1.0 (+mailto:admin@example.com)' \
-./server_run_all_sources_update.sh --trigger manual --skip-load
+./server_run_all_sources_update.sh --trigger manual --skip-embedding --skip-load
 ```
 
 이미 받은 raw snapshot으로 재실행:
@@ -154,6 +148,5 @@ OTHER
 
 ## Notes
 
-- API 서버는 `SentenceTransformer(MODEL_NAME)`로 모델을 로드합니다. 모델이 없으면 최초 실행 시 다운로드를 시도합니다.
-- pipeline embedding도 기본값으로 모델 자동 다운로드를 허용합니다.
+- API 검색은 PostgreSQL `pg_trgm` 기반 fuzzy search를 사용합니다.
 - `load_batch_append_only.sql`은 기존 row를 update/delete하지 않고 없는 primary key만 insert합니다.

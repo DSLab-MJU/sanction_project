@@ -4,15 +4,10 @@ from typing import Any
 
 import psycopg
 from psycopg.rows import dict_row
-from sentence_transformers import SentenceTransformer
-
 from src.dtos import MatchCandidate, Party, SearchRequest
 
-MODEL_NAME = "sentence-transformers/all-mpnet-base-v2"
-NAME_THRESHOLD = 0.78
-ADDRESS_THRESHOLD = 0.74
-
-model = SentenceTransformer(MODEL_NAME)
+NAME_THRESHOLD = 0.60
+ADDRESS_THRESHOLD = 0.70
 
 SQL_SEARCH_PARTY = """
 WITH input_party AS (
@@ -46,49 +41,48 @@ swift_inputs AS (
     CROSS JOIN LATERAL UNNEST(p.swifts) AS swift
     WHERE NULLIF(TRIM(swift), '') IS NOT NULL
 ),
-name_vector_matches AS (
+name_trgm_matches AS (
     SELECT
         p.role,
         p.name AS input_value,
         s.subject_id,
         s.primary_name AS sanction_name,
         s.source_system,
-        'NAME_VECTOR' AS match_field,
-        sn.full_name AS matched_value,
-        1 - (sne.embedding <=> CAST(%(name_vector)s AS vector)) AS match_score
+        'NAME_TRGM' AS match_field,
+        name_value.matched_value,
+        similarity(LOWER(p.name), LOWER(name_value.matched_value)) AS match_score
     FROM norm_party p
-    JOIN subject_name_embeddings sne
-      ON p.name IS NOT NULL
-     AND sne.field_name IN ('full_name', 'non_latin_name')
     JOIN subject_names sn
-      ON sn.subject_name_id = sne.subject_name_id
+      ON p.name IS NOT NULL
+    CROSS JOIN LATERAL (
+        VALUES
+            (sn.full_name),
+            (sn.non_latin_name)
+    ) AS name_value(matched_value)
     JOIN sanction_subjects s
-      ON s.subject_id = sne.subject_id
+      ON s.subject_id = sn.subject_id
      AND s.is_active IS TRUE
-    WHERE %(name_vector)s IS NOT NULL
-      AND (1 - (sne.embedding <=> CAST(%(name_vector)s AS vector))) >= %(name_threshold)s
+    WHERE name_value.matched_value IS NOT NULL
+      AND similarity(LOWER(p.name), LOWER(name_value.matched_value)) >= %(name_threshold)s
 ),
-address_vector_matches AS (
+address_trgm_matches AS (
     SELECT
         p.role,
         p.address AS input_value,
         s.subject_id,
         s.primary_name AS sanction_name,
         s.source_system,
-        'ADDRESS_VECTOR' AS match_field,
+        'ADDRESS_TRGM' AS match_field,
         sa.address_full_raw AS matched_value,
-        1 - (sae.embedding <=> CAST(%(address_vector)s AS vector)) AS match_score
+        similarity(LOWER(p.address), LOWER(sa.address_full_raw)) AS match_score
     FROM norm_party p
-    JOIN subject_address_embeddings sae
-      ON p.address IS NOT NULL
-     AND sae.field_name = 'address_full_raw'
     JOIN subject_addresses sa
-      ON sa.address_id = sae.address_id
+      ON p.address IS NOT NULL
+     AND sa.address_full_raw IS NOT NULL
     JOIN sanction_subjects s
-      ON s.subject_id = sae.subject_id
+      ON s.subject_id = sa.subject_id
      AND s.is_active IS TRUE
-    WHERE %(address_vector)s IS NOT NULL
-      AND (1 - (sae.embedding <=> CAST(%(address_vector)s AS vector))) >= %(address_threshold)s
+    WHERE similarity(LOWER(p.address), LOWER(sa.address_full_raw)) >= %(address_threshold)s
 ),
 registration_matches AS (
     SELECT
@@ -223,9 +217,9 @@ email_matches AS (
      AND s.is_active IS TRUE
 ),
 all_matches AS (
-    SELECT * FROM name_vector_matches
+    SELECT * FROM name_trgm_matches
     UNION ALL
-    SELECT * FROM address_vector_matches
+    SELECT * FROM address_trgm_matches
     UNION ALL
     SELECT * FROM registration_matches
     UNION ALL
@@ -271,7 +265,7 @@ scored_matches AS (
         a.*,
         CASE
             WHEN ch.subject_id IS NULL THEN 0.0
-            WHEN 'ADDRESS_VECTOR' = ANY(a.matched_on)
+            WHEN 'ADDRESS_TRGM' = ANY(a.matched_on)
                  AND (
                     'REGISTRATION_NUMBER' = ANY(a.matched_on)
                     OR 'TAX_ID' = ANY(a.matched_on)
@@ -279,9 +273,7 @@ scored_matches AS (
                     OR 'PHONE' = ANY(a.matched_on)
                     OR 'EMAIL' = ANY(a.matched_on)
                  )
-            THEN 0.20
-            WHEN 'ADDRESS_VECTOR' = ANY(a.matched_on)
-            THEN 0.15
+            THEN 0.10
             WHEN (
                     'REGISTRATION_NUMBER' = ANY(a.matched_on)
                     OR 'TAX_ID' = ANY(a.matched_on)
@@ -290,10 +282,25 @@ scored_matches AS (
                     OR 'EMAIL' = ANY(a.matched_on)
                  )
             THEN 0.12
-            WHEN 'NAME_VECTOR' = ANY(a.matched_on)
+            WHEN 'NAME_TRGM' = ANY(a.matched_on)
             THEN 0.05
             ELSE 0.0
-        END AS country_bonus
+        END AS country_bonus,
+        CASE
+            WHEN (
+                    'REGISTRATION_NUMBER' = ANY(a.matched_on)
+                    OR 'TAX_ID' = ANY(a.matched_on)
+                    OR 'SWIFT' = ANY(a.matched_on)
+                    OR 'PHONE' = ANY(a.matched_on)
+                    OR 'EMAIL' = ANY(a.matched_on)
+                 )
+            THEN 3
+            WHEN 'NAME_TRGM' = ANY(a.matched_on)
+            THEN 2
+            WHEN 'ADDRESS_TRGM' = ANY(a.matched_on)
+            THEN 1
+            ELSE 0
+        END AS match_rank
     FROM aggregated_matches a
     LEFT JOIN country_hits ch
       ON ch.subject_id = a.subject_id
@@ -307,27 +314,14 @@ SELECT
     matched_details,
     base_score,
     country_bonus,
-    LEAST(1.0, base_score + country_bonus) AS final_score
+    CASE
+        WHEN 'ADDRESS_TRGM' = ANY(matched_on) AND CARDINALITY(matched_on) = 1
+        THEN LEAST(0.90, base_score + country_bonus)
+        ELSE LEAST(1.0, base_score + country_bonus)
+    END AS final_score
 FROM scored_matches
-ORDER BY final_score DESC, sanction_name
+ORDER BY final_score DESC, match_rank DESC, sanction_name
 """
-
-
-def embed_text(text: str) -> list[float] | None:
-    if not text or not text.strip():
-        return None
-    vec = model.encode(
-        text.strip(),
-        normalize_embeddings=True,
-        show_progress_bar=False,
-    )
-    return vec.tolist()
-
-
-def _vector_to_pg(vec: list[float] | None) -> str | None:
-    if not vec:
-        return None
-    return "[" + ",".join(f"{float(v):.8f}" for v in vec) + "]"
 
 
 def _row_to_candidate(row: dict[str, Any]) -> MatchCandidate:
@@ -356,9 +350,6 @@ def _bank_swifts(party: Party) -> list[str]:
 
 
 def _search_one_party(conn: psycopg.Connection, party: Party) -> list[MatchCandidate]:
-    name_vector = _vector_to_pg(embed_text(party.name))
-    address_vector = _vector_to_pg(embed_text(party.address))
-
     params = {
         "party_role": party.role.value,
         "party_name": party.name,
@@ -369,8 +360,6 @@ def _search_one_party(conn: psycopg.Connection, party: Party) -> list[MatchCandi
         "party_swifts": _bank_swifts(party),
         "party_phone": party.phone,
         "party_email": party.email,
-        "name_vector": name_vector,
-        "address_vector": address_vector,
         "name_threshold": NAME_THRESHOLD,
         "address_threshold": ADDRESS_THRESHOLD,
     }
